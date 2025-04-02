@@ -1,13 +1,14 @@
-import { openai } from "@ai-sdk/openai"
+import { anthropic } from "@ai-sdk/anthropic"
 import { streamUI } from "ai/rsc";
 
 export const maxDuration = 60
 
 export async function POST(req: Request) {
   const { messages } = await req.json()
+  const model= anthropic("claude-3-5-haiku-lastest");
 
   const result = streamUI({
-    model: openai("gpt-3.5-turbo"),
+    model:model,
     messages,
     system: `Eres un asistente virtual especializado en coliving en CDMX.
     Tu objetivo es ayudar a los usuarios a encontrar el espacio perfecto según sus necesidades.
