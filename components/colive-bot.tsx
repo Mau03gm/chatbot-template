@@ -116,9 +116,9 @@ export default function ColiveBot() {
   return (
     <div className="flex flex-col max-w-3xl mx-auto">
       <div className="p-4 space-y-4">
-        {messages.map((message) => (
+        {messages.map((message, messageIndex) => (
           <div
-            key={message.id}
+            key={`message-${message.id}-${messageIndex}`}
             className={cn(
               "flex flex-col gap-3 max-w-[90%]",
               message.role === "user" ? "ml-auto items-end" : "items-start",
@@ -152,9 +152,9 @@ export default function ColiveBot() {
             {/* Renderizar componentes UI generativos */}
             {message.role === "assistant" && message.ui && message.ui.length > 0 && (
               <div className="pl-11 w-full space-y-3">
-                {message.ui.map((component, idx) => (
+                {message.ui.map((component, componentIndex) => (
                   <UIRenderer
-                    key={`${message.id}-${component.type}-${idx}`}
+                    key={`ui-${message.id}-${component.type}-${componentIndex}`}
                     type={component.type}
                     props={component.props}
                     onSelect={(value: any) => handleUIInteraction(value, component.type)}

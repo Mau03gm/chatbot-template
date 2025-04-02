@@ -1,15 +1,22 @@
-import { anthropic } from "@ai-sdk/anthropic"
+import { deepseek } from "@ai-sdk/deepseek"
 import { streamUI } from "ai/rsc";
 
 export const maxDuration = 60
 
 export async function POST(req: Request) {
   const { messages } = await req.json()
-  const model= anthropic("claude-3-5-haiku-lastest");
+  const model = deepseek("deepseek-chat")
+
+  // Aseguramos que los mensajes tengan el formato correcto
+  const formattedMessages = messages.map((msg: any) => ({
+    role: msg.role,
+    content: msg.content,
+    ...(msg.ui && { ui: msg.ui })
+  }))
 
   const result = streamUI({
-    model:model,
-    messages,
+    model,
+    messages: formattedMessages,
     system: `Eres un asistente virtual especializado en coliving en CDMX.
     Tu objetivo es ayudar a los usuarios a encontrar el espacio perfecto según sus necesidades.
     
@@ -28,16 +35,16 @@ export async function POST(req: Request) {
     5. Recomienda opciones basadas en sus respuestas (muestra PropertyCard)
 
     presupuestos existentes: 
-              {label: "$5,000 - $8,000", value: "bajo" },
-              { label: "$8,000 - $12,000", value: "medio" },
-              { label: "$12,000 - $15,000", value: "alto" },
-              { label: "Más de $15,000", value: "premium"
+             $5,000 - $8,000",  "bajo",
+             $8,000 - $12,000", "medio",
+             $12,000 - $15,000", value: "alto",
+            Más de $15,000", "premium"
     
     Mantén un tono amigable y profesional.`,
   })
 
   return new Response(JSON.stringify({ result }), {
     headers: { "Content-Type": "application/json" },  
-});
+  })
 }
 
