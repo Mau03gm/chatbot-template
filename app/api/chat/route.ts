@@ -1,50 +1,157 @@
 import { deepseek } from "@ai-sdk/deepseek"
-import { streamUI } from "ai/rsc";
+import { streamText } from "ai"
+import { tools } from "@/ai/tools";
+import { z } from "zod";
 
-export const maxDuration = 60
+// Definimos tipos para mensajes y tool invocations
+type Message = {
+  role: "user" | "assistant" | "system";
+  content: string;
+  toolInvocations?: ToolInvocation[];
+};
+
+type ToolInvocation = {
+  toolName: string;
+  toolCallId: string;
+  state: string;
+  result?: any;
+};
+
+// Definimos esquemas Zod para la validación
+const MessageSchema = z.object({
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string(),
+  toolInvocations: z.array(z.object({
+    toolName: z.string(),
+    toolCallId: z.string(),
+    state: z.string(),
+    result: z.any().optional()
+  })).optional()
+});
+
+// Permitir respuestas streaming hasta 60 segundos
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json()
-  const model = deepseek("deepseek-chat")
+  const body = await req.json();
+  const { messages } = body;
+  
+  // Validamos los mensajes con Zod
+  const validMessages = z.array(MessageSchema).safeParse(messages);
+  
+  if (!validMessages.success) {
+    return new Response(JSON.stringify({ error: "Formato de mensajes inválido" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  
+  const model = deepseek("deepseek-chat");
 
-  // Aseguramos que los mensajes tengan el formato correcto
-  const formattedMessages = messages.map((msg: any) => ({
-    role: msg.role,
-    content: msg.content,
-    ...(msg.ui && { ui: msg.ui })
-  }))
+  // Procesamos los mensajes para detectar en qué etapa estamos
+  const userMessages = messages.filter((m: Message) => m.role === 'user');
+  const lastUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
+  
+  // Detectamos las selecciones del usuario para saber en qué paso vamos
+  const hasBudgetSelection = lastUserMessage?.content.includes('He seleccionado el presupuesto:');
+  const hasLocationSelection = lastUserMessage?.content.includes('Me interesa la zona:');
+  const hasPreferenceSelection = lastUserMessage?.content.includes('Mis preferencias son:');
+  const hasDurationSelection = lastUserMessage?.content.includes('Planeo quedarme:');
+  
+  // También verificamos si ya se han usado herramientas
+  const hasUsedBudgetTool = messages.some((m: Message) => 
+    m.role === 'assistant' && m.toolInvocations?.some((t: ToolInvocation) => t.toolName === 'budgetSelector')
+  );
+  
+  const hasUsedLocationTool = messages.some((m: Message) => 
+    m.role === 'assistant' && m.toolInvocations?.some((t: ToolInvocation) => t.toolName === 'locationSelector')
+  );
+  
+  const hasUsedPreferencesTool = messages.some((m: Message) => 
+    m.role === 'assistant' && m.toolInvocations?.some((t: ToolInvocation) => t.toolName === 'roomPreferences')
+  );
+  
+  const hasUsedDurationTool = messages.some((m: Message) => 
+    m.role === 'assistant' && m.toolInvocations?.some((t: ToolInvocation) => t.toolName === 'stayDuration')
+  );
 
-  const result = streamUI({
+  // Determinamos en qué paso estamos del flujo
+  let currentStep = 0;
+  
+  // Si hay un mensaje del usuario con selección, va a influir en el paso actual
+  if (hasDurationSelection) {
+    currentStep = 5; // Mostrar propiedades
+  } else if (hasPreferenceSelection) {
+    currentStep = 4; // Preguntar duración
+  } else if (hasLocationSelection) {
+    currentStep = 3; // Preguntar preferencias
+  } else if (hasBudgetSelection) {
+    currentStep = 2; // Preguntar ubicación
+  } else if (hasUsedDurationTool) {
+    currentStep = 5; // Mostrar propiedades
+  } else if (hasUsedPreferencesTool) {
+    currentStep = 4; // Preguntar duración
+  } else if (hasUsedLocationTool) {
+    currentStep = 3; // Preguntar preferencias
+  } else if (hasUsedBudgetTool) {
+    currentStep = 2; // Preguntar ubicación
+  } else {
+    currentStep = 1; // Preguntar presupuesto (primer paso)
+  }
+
+  // Elegimos el mensaje de sistema según el paso
+  let systemPrompt = "";
+  
+  switch (currentStep) {
+    case 1:
+      systemPrompt = `Eres un asistente amigable de coliving en CDMX. El usuario está buscando opciones de vivienda.
+      IMPORTANTE: Usa la herramienta budgetSelector sin argumentos para mostrar opciones de presupuesto.
+      Di una frase breve dando la bienvenida y pregunta por el presupuesto, luego usa la herramienta.`;
+      break;
+    
+    case 2:
+      systemPrompt = `Ahora que conoces el presupuesto del usuario, pregunta por las zonas de interés.
+      IMPORTANTE: Usa la herramienta locationSelector sin argumentos para mostrar las opciones de ubicación.
+      Agradece la selección del presupuesto y pregunta por la zona preferida.`;
+      break;
+    
+    case 3:
+      systemPrompt = `Ahora pregunta por sus preferencias de habitación y servicios.
+      IMPORTANTE: Usa la herramienta roomPreferences sin argumentos para mostrar las opciones.
+      Menciona que ahora necesitas saber qué características buscan en su espacio.`;
+      break;
+    
+    case 4:
+      systemPrompt = `Pregunta por cuánto tiempo planean quedarse en el coliving.
+      IMPORTANTE: Usa la herramienta stayDuration sin argumentos para mostrar las opciones.
+      Menciona que ya casi tienen toda la información necesaria.`;
+      break;
+    
+    case 5:
+      systemPrompt = `Es momento de mostrar las propiedades recomendadas basadas en toda la información recopilada.
+      IMPORTANTE: Usa la herramienta propertyCard sin argumentos para mostrar las opciones.
+      Menciona que estas son las opciones que mejor se adaptan a sus necesidades.`;
+      break;
+    
+    default:
+      systemPrompt = `Eres un asistente virtual especializado en coliving en CDMX.
+      Sigue el flujo: presupuesto → ubicación → preferencias → duración → recomendaciones.
+      Si el usuario pregunta por información general, responde brevemente y vuelve al paso actual del flujo.`;
+  }
+
+  console.log("Paso actual:", currentStep);
+
+  // Usamos streamText con maxSteps=1 para prevenir el bucle
+  const result = streamText({
     model,
-    messages: formattedMessages,
-    system: `Eres un asistente virtual especializado en coliving en CDMX.
-    Tu objetivo es ayudar a los usuarios a encontrar el espacio perfecto según sus necesidades.
-    
-    Utiliza componentes UI para hacer la experiencia más interactiva:
-    - Usa BudgetSelector cuando preguntes sobre presupuesto
-    - Usa LocationSelector cuando preguntes sobre zonas de interés
-    - Usa RoomPreferences cuando preguntes sobre preferencias de habitación
-    - Usa StayDuration cuando preguntes sobre duración de estancia
-    - Usa PropertyCard para mostrar recomendaciones específicas
-    
-    Sigue este flujo de conversación:
-    1. Pregunta sobre su presupuesto mensual (muestra opciones con BudgetSelector)
-    2. Pregunta sobre las zonas de interés en CDMX (muestra opciones con LocationSelector)
-    3. Pregunta sobre sus preferencias (muestra opciones con RoomPreferences)
-    4. Pregunta sobre la duración de su estancia (muestra opciones con StayDuration)
-    5. Recomienda opciones basadas en sus respuestas (muestra PropertyCard)
+    messages,
+    tools,
+    temperature: 0.2,
+    maxSteps: 1,
+    system: systemPrompt,
+    maxTokens: 800 // Limitamos tokens para evitar respuestas largas
+  });
 
-    presupuestos existentes: 
-             $5,000 - $8,000",  "bajo",
-             $8,000 - $12,000", "medio",
-             $12,000 - $15,000", value: "alto",
-            Más de $15,000", "premium"
-    
-    Mantén un tono amigable y profesional.`,
-  })
-
-  return new Response(JSON.stringify({ result }), {
-    headers: { "Content-Type": "application/json" },  
-  })
+  return result.toDataStreamResponse();
 }
 
