@@ -12,10 +12,17 @@ import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
 interface StayDurationProps {
+  durationText: DurationOption[]
   onSelect: (value: string) => void
 }
 
-export function StayDuration({ onSelect }: StayDurationProps) {
+interface DurationOption {
+  label: string
+  value: string
+}
+
+
+export function StayDuration({durationText,  onSelect }: StayDurationProps) {
   const [duration, setDuration] = useState<string>("3-6")
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
 
@@ -23,13 +30,6 @@ export function StayDuration({ onSelect }: StayDurationProps) {
     const formattedDate = startDate
       ? `a partir del ${format(startDate, "d 'de' MMMM", { locale: es })}`
       : "próximamente"
-
-    const durationText = {
-      "1-3": "1-3 meses",
-      "3-6": "3-6 meses",
-      "6-12": "6-12 meses",
-      "12+": "más de 12 meses",
-    }[duration]
 
     onSelect(`${durationText} ${formattedDate}`)
   }
@@ -47,10 +47,11 @@ export function StayDuration({ onSelect }: StayDurationProps) {
                 <SelectValue placeholder="Selecciona duración" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1-3">1-3 meses</SelectItem>
-                <SelectItem value="3-6">3-6 meses</SelectItem>
-                <SelectItem value="6-12">6-12 meses</SelectItem>
-                <SelectItem value="12+">Más de 12 meses</SelectItem>
+                {durationText.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

@@ -25,7 +25,7 @@ function UIRenderer({ type, props, onSelect }: { type: string; props: any; onSel
     case "RoomPreferences":
       return <RoomPreferences {...props} onSelect={onSelect} />
     case "StayDuration":
-      return <StayDuration onSelect={onSelect} />
+      return <StayDuration {...props} onSelect={onSelect} />
     case "PropertyCard":
       return <PropertyCard {...props} onSelect={onSelect} />
     default:

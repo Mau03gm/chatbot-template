@@ -48,98 +48,38 @@ export async function POST(req: Request) {
   
   const model = deepseek("deepseek-chat");
 
-  // Procesamos los mensajes para detectar en qué etapa estamos
-  const userMessages = messages.filter((m: Message) => m.role === 'user');
-  const lastUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
-  
-  // Detectamos las selecciones del usuario para saber en qué paso vamos
-  const hasBudgetSelection = lastUserMessage?.content.includes('He seleccionado el presupuesto:');
-  const hasLocationSelection = lastUserMessage?.content.includes('Me interesa la zona:');
-  const hasPreferenceSelection = lastUserMessage?.content.includes('Mis preferencias son:');
-  const hasDurationSelection = lastUserMessage?.content.includes('Planeo quedarme:');
-  
-  // También verificamos si ya se han usado herramientas
-  const hasUsedBudgetTool = messages.some((m: Message) => 
-    m.role === 'assistant' && m.toolInvocations?.some((t: ToolInvocation) => t.toolName === 'budgetSelector')
-  );
-  
-  const hasUsedLocationTool = messages.some((m: Message) => 
-    m.role === 'assistant' && m.toolInvocations?.some((t: ToolInvocation) => t.toolName === 'locationSelector')
-  );
-  
-  const hasUsedPreferencesTool = messages.some((m: Message) => 
-    m.role === 'assistant' && m.toolInvocations?.some((t: ToolInvocation) => t.toolName === 'roomPreferences')
-  );
-  
-  const hasUsedDurationTool = messages.some((m: Message) => 
-    m.role === 'assistant' && m.toolInvocations?.some((t: ToolInvocation) => t.toolName === 'stayDuration')
-  );
 
-  // Determinamos en qué paso estamos del flujo
-  let currentStep = 0;
-  
-  // Si hay un mensaje del usuario con selección, va a influir en el paso actual
-  if (hasDurationSelection) {
-    currentStep = 5; // Mostrar propiedades
-  } else if (hasPreferenceSelection) {
-    currentStep = 4; // Preguntar duración
-  } else if (hasLocationSelection) {
-    currentStep = 3; // Preguntar preferencias
-  } else if (hasBudgetSelection) {
-    currentStep = 2; // Preguntar ubicación
-  } else if (hasUsedDurationTool) {
-    currentStep = 5; // Mostrar propiedades
-  } else if (hasUsedPreferencesTool) {
-    currentStep = 4; // Preguntar duración
-  } else if (hasUsedLocationTool) {
-    currentStep = 3; // Preguntar preferencias
-  } else if (hasUsedBudgetTool) {
-    currentStep = 2; // Preguntar ubicación
-  } else {
-    currentStep = 1; // Preguntar presupuesto (primer paso)
-  }
 
   // Elegimos el mensaje de sistema según el paso
-  let systemPrompt = "";
-  
-  switch (currentStep) {
-    case 1:
-      systemPrompt = `Eres un asistente amigable de coliving en CDMX. El usuario está buscando opciones de vivienda.
-      IMPORTANTE: Usa la herramienta budgetSelector sin argumentos para mostrar opciones de presupuesto.
-      Di una frase breve dando la bienvenida y pregunta por el presupuesto, luego usa la herramienta.`;
-      break;
+  let systemPrompt =`Eres un asistente virtual especializado en coliving en CDMX.
+    Tu objetivo es ayudar a los usuarios a encontrar el espacio perfecto según sus necesidades.
     
-    case 2:
-      systemPrompt = `Ahora que conoces el presupuesto del usuario, pregunta por las zonas de interés.
-      IMPORTANTE: Usa la herramienta locationSelector sin argumentos para mostrar las opciones de ubicación.
-      Agradece la selección del presupuesto y pregunta por la zona preferida.`;
-      break;
+    Utiliza componentes UI para hacer la experiencia más interactiva:
+    - Usa BudgetSelector cuando preguntes sobre presupuesto
+    - Usa LocationSelector cuando preguntes sobre zonas de interés
+    - Usa RoomPreferences cuando preguntes sobre preferencias de habitación
+    - Usa StayDuration cuando preguntes sobre duración de estancia
+    - Usa PropertyCard para mostrar recomendaciones específicas
     
-    case 3:
-      systemPrompt = `Ahora pregunta por sus preferencias de habitación y servicios.
-      IMPORTANTE: Usa la herramienta roomPreferences sin argumentos para mostrar las opciones.
-      Menciona que ahora necesitas saber qué características buscan en su espacio.`;
-      break;
+    Sigue este flujo de conversación:
+    1. Pregunta sobre su presupuesto mensual (muestra opciones con BudgetSelector)
+    2. Pregunta sobre las zonas de interés en CDMX (muestra opciones con LocationSelector) 
+    3. Pregunta sobre sus preferencias (muestra opciones con RoomPreferences)
+    4. Pregunta sobre la duración de su estancia (muestra opciones con StayDuration)
+    5. Recomienda opciones basadas en sus respuestas (muestra PropertyCard)
     
-    case 4:
-      systemPrompt = `Pregunta por cuánto tiempo planean quedarse en el coliving.
-      IMPORTANTE: Usa la herramienta stayDuration sin argumentos para mostrar las opciones.
-      Menciona que ya casi tienen toda la información necesaria.`;
-      break;
-    
-    case 5:
-      systemPrompt = `Es momento de mostrar las propiedades recomendadas basadas en toda la información recopilada.
-      IMPORTANTE: Usa la herramienta propertyCard sin argumentos para mostrar las opciones.
-      Menciona que estas son las opciones que mejor se adaptan a sus necesidades.`;
-      break;
-    
-    default:
-      systemPrompt = `Eres un asistente virtual especializado en coliving en CDMX.
-      Sigue el flujo: presupuesto → ubicación → preferencias → duración → recomendaciones.
-      Si el usuario pregunta por información general, responde brevemente y vuelve al paso actual del flujo.`;
-  }
+    Mantén un tono amigable y profesional.
 
-  console.log("Paso actual:", currentStep);
+    Logica de negocio:
+    - Entre menos presupuesto, menos opciones de calidad.
+    - Entre mas presupuesto, más opciones de calidad.
+    - si el presupuesto es bajo, recomienda zonas más alejadas.
+    - si el presupuesto es alto, recomienda zonas más céntricas.
+    - Si el presupuesto es premium, recomienda zonas exclusivas.
+    - si el presupuesto es bajo, sugiere habitaciones compartidas o estancias mas baratas.
+    - el cliente puede hacer mas de un cambio en sus preferencias.
+    `;
+
 
   // Usamos streamText con maxSteps=1 para prevenir el bucle
   const result = streamText({
