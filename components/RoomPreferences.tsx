@@ -1,47 +1,44 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 
-type Option = {
-  label: string;
-  value: string;
-};
-
-type RoomPreferencesProps = {
-  options: Option[];
-};
-
-export const RoomPreferences = ({ options }: RoomPreferencesProps) => {
+export function RoomPreferences({ options, onSelect }: { 
+  options: Option[]; 
+  onSelect: (values: string[]) => void 
+}) {
   const [selected, setSelected] = useState<string[]>([]);
 
-  const handleToggle = (value: string) => {
+  const toggleOption = (value: string) => {
     if (selected.includes(value)) {
-      setSelected(selected.filter(item => item !== value));
+      setSelected(selected.filter(v => v !== value));
     } else {
       setSelected([...selected, value]);
     }
-    // Aquí se podría implementar envío de selección al chatbot
   };
 
   return (
-    <div className="my-4 p-4 bg-gradient-to-r from-purple-50 to-violet-50 rounded-lg border border-purple-100">
-      <h3 className="text-lg font-medium text-purple-700 mb-3">¿Qué características son importantes para ti?</h3>
-      <p className="text-sm text-gray-600 mb-3">Selecciona todas las que apliquen</p>
-      <div className="grid grid-cols-2 gap-2">
+    <div className="bg-white rounded-lg shadow-md p-4 my-2">
+      <h3 className="text-lg font-semibold mb-3">¿Qué características buscas?</h3>
+      <div className="space-y-2">
         {options.map((option) => (
-          <button
-            key={option.value}
-            onClick={() => handleToggle(option.value)}
-            className={`p-3 rounded-lg transition-all ${
-              selected.includes(option.value)
-                ? 'bg-purple-600 text-white'
-                : 'bg-white hover:bg-purple-100 text-gray-700'
-            }`}
-          >
-            {option.label}
-          </button>
+          <div key={option.id} className="flex items-center">
+            <input
+              type="checkbox"
+              id={option.id}
+              className="mr-2"
+              checked={selected.includes(option.value)}
+              onChange={() => toggleOption(option.value)}
+            />
+            <label htmlFor={option.id}>{option.label}</label>
+          </div>
         ))}
       </div>
+      <button
+        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+        onClick={() => onSelect(selected)}
+      >
+        Confirmar selección
+      </button>
     </div>
   );
-}; 
+}
