@@ -30,7 +30,7 @@ export default function ChatBot() {
     }, 100);
   }, []);
 
-   const { messages, input, handleInputChange, handleSubmit, setMessages, isLoading, append } = useChat({
+   const { messages, input, handleInputChange, handleSubmit, setMessages, status, append } = useChat({
     api: '/api/chat',
     initialMessages: []
   });
@@ -78,7 +78,7 @@ export default function ChatBot() {
               })}
             </div>
           ))}
-          {isLoading && (
+          {(status === 'submitted') && (
             <Loading />
           )}
         </>
