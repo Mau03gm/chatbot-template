@@ -1,6 +1,6 @@
 "use client"
 
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react'
 import Loading from "./loading/loading"
 import { useEffect } from 'react';
 import { UIRender } from './UIGeneration/UIRender';
