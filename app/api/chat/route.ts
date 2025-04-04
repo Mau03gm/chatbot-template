@@ -78,6 +78,8 @@ export async function POST(req: Request) {
     - Si el presupuesto es premium, recomienda zonas exclusivas.
     - si el presupuesto es bajo, sugiere habitaciones compartidas o estancias mas baratas.
     - el cliente puede hacer mas de un cambio en sus preferencias.
+
+    Importante: el component siempre es con UpperCamelCase.
     `;
 
 

@@ -1,199 +1,108 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Bot, Send, User } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { BudgetSelector } from "@/components/ui/budget-selector"
-import { LocationSelector } from "@/components/ui/location-selector"
-import { RoomPreferences } from "@/components/ui/room-preferences"
-import { StayDuration } from "@/components/ui/stay-duration"
-import { PropertyCard } from "@/components/ui/property-card"
-import { v4 as uuidv4 } from "uuid"
-import { Message, UIComponent } from "@/types/chat"
-import { sendChatMessage } from "@/services/chat"
+import { useChat } from 'ai/react';
+import Loading from "./loading/loading"
+import { useEffect } from 'react';
+import { UIRender } from './UIGeneration/UIRender';
 
-// Componente para renderizar UI generativa
-function UIRenderer({ type, props, onSelect }: { type: string; props: any; onSelect: (value: any) => void }) {
-  switch (type) {
-    case "BudgetSelector":
-      return <BudgetSelector {...props} onSelect={onSelect} />
-    case "LocationSelector":
-      return <LocationSelector {...props} onSelect={onSelect} />
-    case "RoomPreferences":
-      return <RoomPreferences {...props} onSelect={onSelect} />
-    case "StayDuration":
-      return <StayDuration {...props} onSelect={onSelect} />
-    case "PropertyCard":
-      return <PropertyCard {...props} onSelect={onSelect} />
-    default:
-      return null
-  }
+
+interface ExtendedMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  toolInvocations?: any[];
+  hideInUI?: boolean;
 }
 
-export default function ColiveBot() {
-  // Estado para los mensajes
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "¡Hola! Soy tu asistente virtual para encontrar el espacio de coliving perfecto en CDMX. ¿Cuál es tu presupuesto mensual aproximado?",
-      ui: [
-        {
-          type: "BudgetSelector",
-          props: {
-            options: [
-              { label: "$5,000 - $8,000", value: "bajo" },
-              { label: "$8,000 - $12,000", value: "medio" },
-              { label: "$12,000 - $15,000", value: "alto" },
-              { label: "Más de $15,000", value: "premium" },
-            ],
-          },
-        },
-      ],
-    },
-  ])
-
-  // Estado para el input del usuario
-  const [input, setInput] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-
-  // Referencia para el scroll
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  // Efecto para el scroll automático
+export default function ChatBot() {
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  // Función para agregar un mensaje del usuario
-  const addUserMessage = (content: string) => {
-    const newMessage: Message = {
-      id: uuidv4(),
+    append({
       role: "user",
-      content,
-    }
-    setMessages((prev) => [...prev, newMessage])
-    return newMessage.id
-  }
+      content: "Hola, estoy buscando coliving",
+    });
 
-  // Función para obtener la respuesta del asistente
-  const getAssistantResponse = async (userMessageId: string, userInput: string) => {
-    setIsLoading(true)
+    setTimeout(() => {
+      const updatedMessages = [...messages];
+      if (updatedMessages.length > 0) {
+        (updatedMessages[0] as ExtendedMessage).hideInUI = true;
+        setMessages(updatedMessages);
+      }
+    }, 100);
+  }, []);
 
-    try {
-      const response = await sendChatMessage([...messages, { id: userMessageId, role: "user", content: userInput }])
-      console.log("Respuesta del asistente:", response)
-      console.log("Mensajes actuales:", response.id, response.content)
-      setMessages((prev) => [...prev, response])
-    } catch (error) {
-      console.error('Error al obtener respuesta:', error)
-      // Aquí podrías mostrar un mensaje de error al usuario
-    } finally {
-      setIsLoading(false)
-    }
-  }
+   const { messages, input, handleInputChange, handleSubmit, setMessages, isLoading, append } = useChat({
+    api: '/api/chat',
+    initialMessages: []
+  });
 
-  // Manejador para el envío del formulario
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() && !isLoading) return
 
-    const userMessageId = addUserMessage(input)
-    getAssistantResponse(userMessageId, input)
-    setInput("")
-  }
-
-  // Manejador para la interacción con componentes UI
-  const handleUIInteraction = (value: any, componentType: string) => {
-    const userMessageId = addUserMessage(typeof value === "string" ? value : JSON.stringify(value))
-    getAssistantResponse(userMessageId, typeof value === "string" ? value : JSON.stringify(value))
-  }
-
+  const visibleMessages = messages.filter(msg => {
+    return !(msg as ExtendedMessage).hideInUI;
+  });
+  
   return (
-    <div className="flex flex-col max-w-3xl mx-auto">
-      <div className="p-4 space-y-4">
-        {messages.map((message, messageIndex) => (
-          <div
-            key={`message-${message.id}-${messageIndex}`}
-            className={cn(
-              "flex flex-col gap-3 max-w-[90%]",
-              message.role === "user" ? "ml-auto items-end" : "items-start",
-            )}
-          >
-            <div className="flex items-start gap-3">
-              {message.role === "assistant" && (
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary/20">
-                    <Bot size={16} className="text-primary" />
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <div
-                className={cn(
-                  "rounded-lg px-4 py-2 text-sm",
-                  message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
-                )}
-              >
-                {message.content}
+    <div className="flex flex-col h-[500px]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" id="chat-container">
+        <>
+          {visibleMessages.map((message:any) => (
+            <div 
+              key={message.id} 
+              className={`p-3 rounded-lg max-w-[80%] ${
+                message.role === 'user' 
+                  ? 'bg-blue-100 ml-auto' 
+                  : 'bg-gray-100'
+              }`}
+            >
+              <div className="text-sm font-semibold mb-1">
+                {message.role === 'user' ? 'Tú' : 'Asistente'}
               </div>
-              {message.role === "user" && (
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary/20">
-                    <User size={16} />
-                  </AvatarFallback>
-                </Avatar>
-              )}
+              <div>{message.content}</div>
+              
+              {message.role === 'assistant' && message.toolInvocations?.map((tool:Tool) => {
+                console.log("tool", tool);
+                if (tool.state === 'result') {
+                  return(
+                  <UIRender
+                  key={tool.toolCallId}
+                  tool={tool}
+                  append={append}
+                  /> 
+                  )
+                }
+                
+                return (
+                  <div key={tool.toolCallId} className="mt-2 text-sm text-gray-500">
+                    {tool.toolName === 'budgetSelector' && "Cargando opciones de presupuesto..."}
+                    {tool.toolName === 'locationSelector' && "Cargando zonas disponibles..."}
+                    {tool.toolName === 'roomPreferences' && "Cargando opciones de habitación..."}
+                    {tool.toolName === 'stayDuration' && "Cargando opciones de duración..."}
+                    {tool.toolName === 'propertyCard' && "Buscando propiedades que se ajusten a tus necesidades..."}
+                  </div>
+                );
+              })}
             </div>
-
-            {/* Renderizar componentes UI generativos */}
-            {message.role === "assistant" && message.ui && message.ui.length > 0 && (
-              <div className="pl-11 w-full space-y-3">
-                {message.ui.map((component, componentIndex) => (
-                  <UIRenderer
-                    key={`ui-${message.id}-${component.type}-${componentIndex}`}
-                    type={component.type}
-                    props={component.props}
-                    onSelect={(value: any) => handleUIInteraction(value, component.type)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex items-start gap-3">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary/20">
-                <Bot size={16} className="text-primary" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="rounded-lg px-4 py-2 text-sm bg-muted">
-              <span className="flex gap-1">
-                <span className="animate-bounce">.</span>
-                <span className="animate-bounce delay-100">.</span>
-                <span className="animate-bounce delay-200">.</span>
-              </span>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+          ))}
+          {isLoading && (
+            <Loading />
+          )}
+        </>
       </div>
-
-      <form onSubmit={handleSubmit} className="border-t p-4 flex gap-2 items-center">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Escribe tu mensaje..."
-          className="flex-1"
-          disabled={isLoading}
-        />
-        <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
-          <Send size={18} />
-        </Button>
+      <form onSubmit={handleSubmit} className="p-4 border-t bg-white sticky bottom-0">
+        <div className="flex items-center">
+          <input
+            type="text"
+            value={input}
+            onChange={handleInputChange}
+            placeholder="Escribe tu mensaje..."
+            className="flex-1 px-4 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600"
+          >
+            Enviar
+          </button>
+        </div>
       </form>
     </div>
   )
