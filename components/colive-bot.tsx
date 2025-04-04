@@ -72,11 +72,7 @@ export default function ChatBot() {
                 
                 return (
                   <div key={tool.toolCallId} className="mt-2 text-sm text-gray-500">
-                    {tool.toolName === 'budgetSelector' && "Cargando opciones de presupuesto..."}
-                    {tool.toolName === 'locationSelector' && "Cargando zonas disponibles..."}
-                    {tool.toolName === 'roomPreferences' && "Cargando opciones de habitación..."}
-                    {tool.toolName === 'stayDuration' && "Cargando opciones de duración..."}
-                    {tool.toolName === 'propertyCard' && "Buscando propiedades que se ajusten a tus necesidades..."}
+                    Lo sentimos, hubo un error al cargar los datos. Por favor, intenta nuevamente.
                   </div>
                 );
               })}

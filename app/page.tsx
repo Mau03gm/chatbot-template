@@ -1,45 +1,12 @@
 "use client";
-
-import { useChat } from "ai/react";
-import {
-  BudgetSelector,
-  LocationSelector,
-  PropertyCard,
-  RoomPreferences,
-  StayDuration,
-} from "./components/ui/selectors";
-import { useState, useEffect } from "react";
-import Loading from "@/components/loading/loading";
+import { useState } from "react";
 import ChatBot from "@/components/colive-bot";
 
-// Extendemos el tipo de mensaje para incluir la opción de ocultar en UI
-interface ExtendedMessage {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  toolInvocations?: any[];
-  hideInUI?: boolean;
-}
 
 export default function Home() {
   const [chatStarted, setChatStarted] = useState(false);
 
-  // Usamos useChat con la configuración adecuada
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    setMessages,
-    isLoading,
-    append,
-  } = useChat({
-    api: "/api/chat",
-    initialMessages: [],
-  });
 
-
-  // Iniciar chat con un mensaje del usuario normal
   const startChat = () => {
     setChatStarted(true);
   };
