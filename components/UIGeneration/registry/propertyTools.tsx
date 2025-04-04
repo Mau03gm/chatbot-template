@@ -2,11 +2,11 @@ import { PropertyCard } from "../tools/PropertyCard";
 
 
 export const propertyTools = {
-    StayDuration: {
+    PropertyCard: {
       component: PropertyCard,
       getProps: (tool:Tool, handlers:any) => ({
         key: tool.toolCallId,
-        options: tool.result.options,
+        properties: tool.result.properties,
         onSelect: handlers.PropertyCard,
       }),
     },

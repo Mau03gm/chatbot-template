@@ -1,7 +1,7 @@
 import { LocationSelector } from "../tools/LocationSelector";
 
 export const locationTools = {
-    StayDuration: {
+    LocationSelector: {
       component: LocationSelector,
       getProps: (tool:Tool, handlers:any) => ({
         key: tool.toolCallId,

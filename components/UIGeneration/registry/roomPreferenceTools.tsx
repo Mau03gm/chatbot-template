@@ -2,7 +2,7 @@ import { RoomPreferences } from "../tools/RoomPreferences";
 
 
 export const roomPreferencesTools = {
-    StayDuration: {
+    RoomPreferences: {
       component: RoomPreferences,
       getProps: (tool:Tool, handlers:any) => ({
         key: tool.toolCallId,
